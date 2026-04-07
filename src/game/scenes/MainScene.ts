@@ -190,6 +190,7 @@ export class MainScene extends Phaser.Scene {
             
             this.physics.add.existing(bullet);
             const bBody = bullet.body as Phaser.Physics.Arcade.Body;
+            bBody.setCircle(15); // Generous circular hit-box for consistent impact
             bBody.setVelocity(Math.cos(angle) * 1200, Math.sin(angle) * 1200);
             this.bullets.add(bullet);
             
@@ -198,7 +199,7 @@ export class MainScene extends Phaser.Scene {
             
             const miniMap = this.cameras.getCamera('mini');
             if (miniMap) miniMap.ignore(bullet);
-            this.time.delayedCall(1000, () => bullet.destroy());
+            this.time.delayedCall(2500, () => bullet.destroy()); // Extended range
         });
 
         this.physics.add.collider(this.bullets, this.asteroids, (b, a) => {
@@ -232,6 +233,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         // PHYSICS REFINEMENT: Prevent overlaps
+        this.physics.add.collider(this.player, this.asteroids); // Crucial: Can't stay on asteroids
         this.physics.add.collider(this.asteroids, this.asteroids);
         this.physics.add.collider(this.asteroids, this.interactiveObjects);
         this.physics.add.collider(this.interactiveObjects, this.interactiveObjects);
