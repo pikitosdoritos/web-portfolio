@@ -75,7 +75,8 @@ export class MainScene extends Phaser.Scene {
                     const br = pix[0], bg = pix[1], bb = pix[2];
                     for (let i = 0; i < pix.length; i += 4) {
                         const dist = Math.abs(pix[i]-br) + Math.abs(pix[i+1]-bg) + Math.abs(pix[i+2]-bb);
-                        if (dist < 35) pix[i+3] = 0;
+                        // Using higher threshold for laser/asteroid to ensure glow doesn't leave halos
+                        if (dist < 50) pix[i+3] = 0;
                     }
                     ctx.putImageData(imgData, 0, 0);
                     this.textures.remove(key);
@@ -179,13 +180,17 @@ export class MainScene extends Phaser.Scene {
         }
 
         this.player.on('fire', (x: number, y: number, angle: number) => {
-            const bullet = this.add.sprite(x, y, 'laser');
+            // FIRE FROM BOW: Offset current position by ship length in bow direction
+            const bowX = x + Math.cos(angle) * 35;
+            const bowY = y + Math.sin(angle) * 35;
+            
+            const bullet = this.add.sprite(bowX, bowY, 'laser');
             bullet.setRotation(angle + Math.PI/2); 
-            bullet.setScale(0.3); // Smaller projectile
+            bullet.setScale(0.12); // Much smaller for realism
             
             this.physics.add.existing(bullet);
             const bBody = bullet.body as Phaser.Physics.Arcade.Body;
-            bBody.setVelocity(Math.cos(angle) * 1100, Math.sin(angle) * 1100);
+            bBody.setVelocity(Math.cos(angle) * 1200, Math.sin(angle) * 1200);
             this.bullets.add(bullet);
             
             // SFX: Laser Shot
@@ -225,6 +230,11 @@ export class MainScene extends Phaser.Scene {
             this.time.delayedCall(600, () => { rockParticles.destroy(); flash.destroy(); });
             ast.destroy();
         });
+
+        // PHYSICS REFINEMENT: Prevent overlaps
+        this.physics.add.collider(this.asteroids, this.asteroids);
+        this.physics.add.collider(this.asteroids, this.interactiveObjects);
+        this.physics.add.collider(this.interactiveObjects, this.interactiveObjects);
 
         // Modal System
         this.modalOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.75).setOrigin(0).setScrollFactor(0).setVisible(false).setDepth(100).setInteractive();
