@@ -10,7 +10,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         super(scene, x, y, textureKey);
         
         if (!scene.textures.exists('player_sprite')) {
-            const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+            const graphics = scene.make.graphics({ x: 0, y: 0 });
             graphics.fillStyle(0x3b82f6, 0.4);
             graphics.fillCircle(16, 16, 16);
             graphics.fillStyle(0x60a5fa, 1);

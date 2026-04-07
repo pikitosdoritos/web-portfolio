@@ -22,6 +22,7 @@ export class MainScene extends Phaser.Scene {
     preload() {
         this.load.image('ship', 'assets/ship.png');
         this.load.image('space_assets', 'assets/space_assets.png');
+        this.load.image('structures', 'assets/structures.png');
     }
 
     create() {
@@ -90,7 +91,7 @@ export class MainScene extends Phaser.Scene {
         const modalH = Math.min(height * 0.8, 480);
         const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0d1117, 0.98).setStrokeStyle(1.5, 0x3b82f6, 1);
         
-        this.modalTitle = this.add.text(0, -modalH/2 + 60, '', { fontSize: '28px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', fontWeight: '800', letterSpacing: 3 }).setOrigin(0.5);
+        this.modalTitle = this.add.text(0, -modalH/2 + 60, '', { fontSize: '28px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', fontStyle: '800', letterSpacing: 3 }).setOrigin(0.5);
         this.modalDesc = this.add.text(0, -modalH/2 + 120, '', { fontSize: '18px', fontFamily: 'Inter, sans-serif', color: '#f0f6fc', wordWrap: { width: modalW - 80 } }).setOrigin(0.5);
         this.modalDetails = this.add.text(0, 30, '', { fontSize: '15px', fontFamily: 'Inter, sans-serif', color: '#94a3b8', wordWrap: { width: modalW - 80 }, lineSpacing: 10 }).setOrigin(0.5);
         const close = this.add.text(0, modalH/2 - 50, '[ ESC ] TO CLOSE', { fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#3b82f6', letterSpacing: 3 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -103,7 +104,7 @@ export class MainScene extends Phaser.Scene {
         this.input.keyboard!.on('keydown-ESC', () => this.hideModal());
         
         // System HUD
-        this.add.text(40, 40, 'SYSTEM_EXPLORER.EXE v1.3', { fontSize: '15px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', letterSpacing: 4, fontWeight: '800' }).setScrollFactor(0);
+        this.add.text(40, 40, 'SPACE_COMMAND.EXE v2.0', { fontSize: '15px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', letterSpacing: 4, fontStyle: 'bold' }).setScrollFactor(0);
 
         // Dynamic Resize Handler
         this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {

@@ -23,27 +23,32 @@ export class InteractiveObject extends Phaser.GameObjects.Container {
 
         // Ensure texture exists
         if (!scene.textures.exists('terminal_icon')) {
-            const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
-            // Outer Ring Glow
-            graphics.lineStyle(1.5, 0x3b82f6, 0.4);
-            graphics.strokeCircle(32, 32, 30);
-            // Core Ring
-            graphics.lineStyle(2, 0x60a5fa, 1);
-            graphics.strokeCircle(32, 32, 22);
-            // Pulse Sphere
-            graphics.fillStyle(0x3b82f6, 0.2);
-            graphics.fillCircle(32, 32, 16);
-            graphics.generateTexture('terminal_icon', 64, 64);
+            const structuresExist = scene.textures.exists('structures');
+            if (structuresExist) {
+                // Use the structures texture if available
+                this.icon = scene.add.sprite(0, 0, 'structures');
+                this.icon.setScale(0.4); // Scale down the 256x256 assets to hub size
+            } else {
+                const graphics = scene.make.graphics({ x: 0, y: 0 });
+                graphics.lineStyle(1.5, 0x3b82f6, 0.4);
+                graphics.strokeCircle(32, 32, 30);
+                graphics.lineStyle(2, 0x60a5fa, 1);
+                graphics.strokeCircle(32, 32, 22);
+                graphics.fillStyle(0x3b82f6, 0.2);
+                graphics.fillCircle(32, 32, 16);
+                graphics.generateTexture('terminal_icon', 64, 64);
+                this.icon = scene.add.sprite(0, 0, 'terminal_icon');
+            }
+        } else {
+            this.icon = scene.add.sprite(0, 0, 'terminal_icon');
         }
-        
-        this.icon = scene.add.sprite(0, 0, 'terminal_icon');
         this.icon.setInteractive({ useHandCursor: true });
 
         this.label = scene.add.text(0, -60, interactionData.title.toUpperCase(), {
             fontSize: '18px',
             fontFamily: 'Outfit, sans-serif',
             color: '#3b82f6',
-            fontWeight: '800',
+            fontStyle: '800',
             letterSpacing: 3
         }).setOrigin(0.5);
 
