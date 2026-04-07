@@ -19,7 +19,10 @@ export class MainScene extends Phaser.Scene {
         super({ key: 'MainScene' });
     }
 
-    preload() {}
+    preload() {
+        this.load.image('ship', 'assets/ship.png');
+        this.load.image('space_assets', 'assets/space_assets.png');
+    }
 
     create() {
         const { width, height } = this.scale;
@@ -27,10 +30,27 @@ export class MainScene extends Phaser.Scene {
 
         this.cameras.main.setBounds(0, 0, mapW, mapH);
         this.physics.world.setBounds(0, 0, mapW, mapH);
-        this.cameras.main.setBackgroundColor('#010409');
+        this.cameras.main.setBackgroundColor('#020617');
+
+        // Design: Add Nebula Background Elements
+        for (let i = 0; i < 6; i++) {
+            const nx = Phaser.Math.Between(0, mapW);
+            const ny = Phaser.Math.Between(0, mapH);
+            const nebula = this.add.image(nx, ny, 'space_assets');
+            nebula.setAlpha(0.25).setDepth(0).setScrollFactor(0.8);
+            nebula.setScale(Phaser.Math.FloatBetween(2, 4));
+            nebula.setAngle(Phaser.Math.Between(0, 360));
+        }
+
+        // DESIGN: Star clusters (Small stars as decor)
+        const stars = this.add.graphics();
+        stars.fillStyle(0xffffff, 0.8);
+        for (let i = 0; i < 800; i++) {
+            stars.fillCircle(Phaser.Math.Between(0, mapW), Phaser.Math.Between(0, mapH), Phaser.Math.FloatBetween(0.5, 2));
+        }
 
         const grid = this.add.graphics();
-        grid.lineStyle(1.5, 0x161b22, 1);
+        grid.lineStyle(1.2, 0x1e293b, 0.4);
         for (let i = 0; i <= mapW / tileSize; i++) grid.lineBetween(i * tileSize, 0, i * tileSize, mapH);
         for (let j = 0; j <= mapH / tileSize; j++) grid.lineBetween(0, j * tileSize, mapW, j * tileSize);
 
@@ -90,7 +110,21 @@ export class MainScene extends Phaser.Scene {
             const { width: newW, height: newH } = gameSize;
             this.modalOverlay.setSize(newW, newH);
             this.modalContainer.setPosition(newW / 2, newH / 2);
-            // Re-center static background or other scene UI if needed
+
+            // BUG FIX: Resize modal background and content
+            const modalW = Math.min(newW * 0.9, 640);
+            const modalH = Math.min(newH * 0.8, 480);
+            const bg = this.modalContainer.getAt(0) as Phaser.GameObjects.Rectangle;
+            if (bg) bg.setSize(modalW, modalH);
+            
+            // Re-position children relative to center
+            this.modalTitle.setY(-modalH/2 + 60);
+            this.modalDesc.setY(-modalH/2 + 120);
+            this.modalDesc.setWordWrapWidth(modalW - 80);
+            this.modalDetails.setY(30);
+            this.modalDetails.setWordWrapWidth(modalW - 80);
+            const close = this.modalContainer.getAt(4) as Phaser.GameObjects.Text;
+            if (close) close.setY(modalH/2 - 50);
         });
     }
 

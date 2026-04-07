@@ -6,29 +6,30 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     private velocity = 450; // Snappier movement
 
     constructor(scene: Phaser.Scene, x: number, y: number) {
-        super(scene, x, y, 'player_sprite');
+        const textureKey = scene.textures.exists('ship') ? 'ship' : 'player_sprite';
+        super(scene, x, y, textureKey);
         
         if (!scene.textures.exists('player_sprite')) {
             const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
-            // Glow layer
             graphics.fillStyle(0x3b82f6, 0.4);
             graphics.fillCircle(16, 16, 16);
-            // Core layer
             graphics.fillStyle(0x60a5fa, 1);
             graphics.fillCircle(16, 16, 12);
-            // Detail
             graphics.lineStyle(1.5, 0xffffff, 1);
             graphics.strokeCircle(16, 16, 12);
             graphics.generateTexture('player_sprite', 32, 32);
         }
 
-        this.setTexture('player_sprite');
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
-        // Use a circular body for smoother navigation around obstacles
         const body = this.body as Phaser.Physics.Arcade.Body;
-        body.setCircle(14, 2, 2);
+        if (textureKey === 'ship') {
+            this.setDisplaySize(64, 64);
+            body.setCircle(24, 8, 8); // Adjusted for 64x64
+        } else {
+            body.setCircle(14, 2, 2);
+        }
         
         this.setCollideWorldBounds(true);
         this.setOrigin(0.5, 0.5);
