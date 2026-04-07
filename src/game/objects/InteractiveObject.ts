@@ -62,11 +62,17 @@ export class InteractiveObject extends Phaser.GameObjects.Container {
         this.add([this.icon, this.label, this.prompt]);
         scene.add.existing(this);
 
-        // Physics setup: Add a static body for character collisions
-        scene.physics.add.existing(this, true);
-        const body = this.body as Phaser.Physics.Arcade.StaticBody;
-        body.setCircle(24);
-        body.setOffset(-24, -24); // Centering the circle offset on the container origin (0,0)
+        // Physics setup: Use the isStatic parameter
+        scene.physics.add.existing(this, isStatic);
+        if (isStatic) {
+            const body = this.body as Phaser.Physics.Arcade.StaticBody;
+            body.setCircle(24);
+            body.setOffset(-24, -24);
+        } else {
+            const body = this.body as Phaser.Physics.Arcade.Body;
+            body.setCircle(24);
+            body.setOffset(-24, -24);
+        }
     }
 
     checkProximity(playerX: number, playerY: number): boolean {

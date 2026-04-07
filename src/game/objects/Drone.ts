@@ -2,15 +2,9 @@ import 'phaser';
 import { InteractiveObject, InteractionData } from './InteractiveObject';
 
 export class Drone extends InteractiveObject {
-    private patrolTween: Phaser.Tweens.Tween | null = null;
 
     constructor(scene: Phaser.Scene, x: number, y: number, data: InteractionData) {
-        super(scene, x, y, data);
-        
-        // Remove static body and add dynamic body for moving objects
-        if (this.body instanceof Phaser.Physics.Arcade.StaticBody) {
-             scene.physics.add.existing(this, false); // Dynamic
-        }
+        super(scene, x, y, data, false); // Dynamic
         
         const body = this.body as Phaser.Physics.Arcade.Body;
         body.setCircle(20);
