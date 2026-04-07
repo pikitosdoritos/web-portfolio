@@ -154,14 +154,18 @@ export class MainScene extends Phaser.Scene {
         border.strokeRect(width - miniMapW - padding, padding, miniMapW, miniMapH);
         border.setDepth(1000);
 
-        // Mini-map ignore logic: Ignore specific UI elements in the mini-map camera
-        miniMap.ignore([this.modalOverlay, this.modalContainer, border, ...this.nebulas]);
-        
         // Player Marker on Minimap
-        const marker = this.add.circle(0, 0, 80, 0xff0000, 1).setDepth(2000);
+        const marker = this.add.graphics().setDepth(2000);
+        marker.fillStyle(0xff0000, 1);
+        marker.fillCircle(0, 0, 80);
+        
         this.events.on('update', () => {
             marker.setPosition(this.player.x, this.player.y);
         });
+
+        // Camera Ignore Logic: Crucial for layering
+        this.cameras.main.ignore([marker, border]);
+        miniMap.ignore([this.modalOverlay, this.modalContainer, border, ...this.nebulas]);
 
         // Dynamic Resize Handler
         this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
