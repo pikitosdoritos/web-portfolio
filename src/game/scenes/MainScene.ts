@@ -138,15 +138,13 @@ export class MainScene extends Phaser.Scene {
         // Mini-map Camera
         const miniMapW = 200, miniMapH = 200, padding = 40;
         const miniMap = this.cameras.add(width - miniMapW - padding, padding, miniMapW, miniMapH)
-            .setZoom(0.04) // Show most of the 4000x4000 map
+            .setZoom(0.05) // Perfect 1:20 ratio for 4000x4000 map in 200x200 viewport
             .setName('mini')
-            .setBackgroundColor(0x000000)
+            .setBackgroundColor(0x000111)
             .setBounds(0, 0, mapW, mapH)
-            .setAlpha(0.8)
-            .setRoundPixels(true);
-        
-        miniMap.scrollX = mapW / 2 - miniMapW;
-        miniMap.scrollY = mapH / 2 - miniMapH;
+            .setAlpha(0.9)
+            .setRoundPixels(true)
+            .centerOn(mapW/2, mapH/2);
         
         // Add a border to the mini-map
         const border = this.add.graphics().setScrollFactor(0);
@@ -163,9 +161,20 @@ export class MainScene extends Phaser.Scene {
             marker.setPosition(this.player.x, this.player.y);
         });
 
+        // Hub Markers for Minimap
+        const hubMarkers: Phaser.GameObjects.Graphics[] = [];
+        this.interactiveObjects.forEach(obj => {
+            const m = this.add.graphics({ x: obj.x, y: obj.y }).setDepth(1500);
+            m.fillStyle(0x3b82f6, 1);
+            m.fillCircle(0, 0, 100); // Large dot for minimap
+            m.lineStyle(10, 0xffffff, 1);
+            m.strokeCircle(0, 0, 100);
+            hubMarkers.push(m);
+        });
+
         // Camera Ignore Logic: Crucial for layering
-        this.cameras.main.ignore([marker, border]);
-        miniMap.ignore([this.modalOverlay, this.modalContainer, border, ...this.nebulas]);
+        this.cameras.main.ignore([marker, border, ...hubMarkers]);
+        miniMap.ignore([this.modalOverlay, this.modalContainer, border, ...this.nebulas, ...this.interactiveObjects]);
 
         // Dynamic Resize Handler
         this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
