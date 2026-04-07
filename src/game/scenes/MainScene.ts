@@ -79,10 +79,7 @@ export class MainScene extends Phaser.Scene {
             stars.fillCircle(Phaser.Math.Between(0, mapW), Phaser.Math.Between(0, mapH), Phaser.Math.FloatBetween(0.5, 2));
         }
 
-        const grid = this.add.graphics();
-        grid.lineStyle(1.2, 0x1e293b, 0.4);
-        for (let i = 0; i <= mapW / tileSize; i++) grid.lineBetween(i * tileSize, 0, i * tileSize, mapH);
-        for (let j = 0; j <= mapH / tileSize; j++) grid.lineBetween(0, j * tileSize, mapW, j * tileSize);
+        // Grid removed for cleaner space immersion
 
         const hubX = 2000, hubY = 2000;
         this.player = new Player(this, hubX, hubY);
@@ -135,46 +132,69 @@ export class MainScene extends Phaser.Scene {
         // System HUD
         this.add.text(40, 40, 'SPACE_COMMAND.EXE v2.0', { fontSize: '15px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', letterSpacing: 4, fontStyle: 'bold' }).setScrollFactor(0);
 
-        // Mini-map Camera
-        const miniMapW = 200, miniMapH = 200, padding = 40;
-        const miniMap = this.cameras.add(width - miniMapW - padding, padding, miniMapW, miniMapH)
-            .setZoom(0.05) // Perfect 1:20 ratio for 4000x4000 map in 200x200 viewport
+        // Mini-map Camera: Upgrade to Radar Style
+        const miniMapSize = 220, padding = 30;
+        const miniMap = this.cameras.add(width - miniMapSize - padding, padding, miniMapSize, miniMapSize)
+            .setZoom(0.05)
             .setName('mini')
             .setBackgroundColor(0x000111)
             .setBounds(0, 0, mapW, mapH)
-            .setAlpha(0.9)
+            .setAlpha(0.95)
             .setRoundPixels(true)
             .centerOn(mapW/2, mapH/2);
+
+        // Circular Mask for the Radar
+        const maskGraphics = this.add.graphics().setVisible(false);
+        maskGraphics.fillStyle(0xffffff);
+        maskGraphics.fillCircle(width - miniMapSize/2 - padding, padding + miniMapSize/2, miniMapSize/2);
+        miniMap.setMask(maskGraphics.createGeometryMask());
+
+        // Radar Decorative Elements (Rings & Grid)
+        const radarDecor = this.add.graphics().setScrollFactor(0).setDepth(2100);
+        radarDecor.lineStyle(2, 0x3b82f6, 0.4);
+        radarDecor.strokeCircle(width - miniMapSize/2 - padding, padding + miniMapSize/2, miniMapSize/2);
+        radarDecor.lineStyle(1, 0x3b82f6, 0.2);
+        radarDecor.strokeCircle(width - miniMapSize/2 - padding, padding + miniMapSize/2, miniMapSize/4);
+        // Crosshair
+        radarDecor.lineBetween(width - miniMapSize - padding, padding + miniMapSize/2, width - padding, padding + miniMapSize/2);
+        radarDecor.lineBetween(width - miniMapSize/2 - padding, padding, width - miniMapSize/2 - padding, padding + miniMapSize);
         
-        // Add a border to the mini-map
-        const border = this.add.graphics().setScrollFactor(0);
-        border.lineStyle(2, 0x3b82f6, 1);
-        border.strokeRect(width - miniMapW - padding, padding, miniMapW, miniMapH);
-        border.setDepth(1000);
+        // Dynamic Resize Handler repositioning radar decor
+        this.scale.on('resize', (gs: Phaser.Structs.Size) => {
+            const { width: nw, height: nh } = gs;
+            maskGraphics.clear().fillStyle(0xffffff).fillCircle(nw - miniMapSize/2 - padding, padding + miniMapSize/2, miniMapSize/2);
+            radarDecor.clear();
+            radarDecor.lineStyle(2, 0x3b82f6, 0.4).strokeCircle(nw - miniMapSize/2 - padding, padding + miniMapSize/2, miniMapSize/2);
+            radarDecor.lineStyle(1, 0x3b82f6, 0.2).strokeCircle(nw - miniMapSize/2 - padding, padding + miniMapSize/2, miniMapSize/4);
+            radarDecor.lineBetween(nw - miniMapSize - padding, padding + miniMapSize/2, nw - padding, padding + miniMapSize/2);
+            radarDecor.lineBetween(nw - miniMapSize/2 - padding, padding, nw - miniMapSize/2 - padding, padding + miniMapSize);
+        });
 
         // Player Marker on Minimap
         const marker = this.add.graphics().setDepth(2000);
-        marker.fillStyle(0xff0000, 1);
-        marker.fillCircle(0, 0, 80);
+        marker.fillStyle(0xef4444, 1);
+        marker.fillCircle(0, 0, 90);
+        marker.lineStyle(15, 0xffffff, 0.6);
+        marker.strokeCircle(0, 0, 110);
         
-        this.events.on('update', () => {
-            marker.setPosition(this.player.x, this.player.y);
-        });
+        this.events.on('update', () => marker.setPosition(this.player.x, this.player.y));
+        this.tweens.add({ targets: marker, alpha: 0.5, scale: 1.2, duration: 800, yoyo: true, repeat: -1 });
 
         // Hub Markers for Minimap
         const hubMarkers: Phaser.GameObjects.Graphics[] = [];
         this.interactiveObjects.forEach(obj => {
             const m = this.add.graphics({ x: obj.x, y: obj.y }).setDepth(1500);
             m.fillStyle(0x3b82f6, 1);
-            m.fillCircle(0, 0, 100); // Large dot for minimap
-            m.lineStyle(10, 0xffffff, 1);
+            m.fillCircle(0, 0, 80);
+            m.lineStyle(20, 0x60a5fa, 0.4);
             m.strokeCircle(0, 0, 100);
             hubMarkers.push(m);
+            this.tweens.add({ targets: m, alpha: 0.7, scale: 1.1, duration: 1500, delay: Math.random() * 1000, yoyo: true, repeat: -1 });
         });
 
         // Camera Ignore Logic: Crucial for layering
-        this.cameras.main.ignore([marker, border, ...hubMarkers]);
-        miniMap.ignore([this.modalOverlay, this.modalContainer, border, ...this.nebulas, ...this.interactiveObjects]);
+        this.cameras.main.ignore([marker, radarDecor, ...hubMarkers]);
+        miniMap.ignore([this.modalOverlay, this.modalContainer, radarDecor, ...this.nebulas, ...this.interactiveObjects]);
 
         // Dynamic Resize Handler
         this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
