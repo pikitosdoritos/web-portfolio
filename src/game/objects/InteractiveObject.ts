@@ -17,7 +17,7 @@ export class InteractiveObject extends Phaser.GameObjects.Container {
     
     public interactionData: InteractionData;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, interactionData: InteractionData) {
+    constructor(scene: Phaser.Scene, x: number, y: number, interactionData: InteractionData, isStatic: boolean = true) {
         super(scene, x, y);
         this.interactionData = interactionData;
 
