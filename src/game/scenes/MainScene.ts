@@ -119,7 +119,19 @@ export class MainScene extends Phaser.Scene {
             }
 
             // BUG FIX: Resize modal background and content
-            // ... (rest of resizing logic remains)
+            const mWidth = Math.min(newW * 0.9, 640);
+            const mHeight = Math.min(newH * 0.8, 480);
+            const bgRect = this.modalContainer.getAt(0) as Phaser.GameObjects.Rectangle;
+            if (bgRect) bgRect.setSize(mWidth, mHeight);
+            
+            this.modalTitle.setY(-mHeight/2 + 60);
+            this.modalDesc.setY(-mHeight/2 + 120);
+            this.modalDesc.setWordWrapWidth(mWidth - 80);
+            this.modalDetails.setY(30);
+            this.modalDetails.setWordWrapWidth(mWidth - 80);
+            const closeBtn = this.modalContainer.getAt(4) as Phaser.GameObjects.Text;
+            if (closeBtn) closeBtn.setY(mHeight/2 - 50);
+        });
     }
 
     public showModal(data: InteractionData) {
