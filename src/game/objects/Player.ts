@@ -56,10 +56,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Rotation logic: Point towards movement direction
         if (vx !== 0 || vy !== 0) {
             const angle = Math.atan2(vy, vx);
-            // Some sprites need 90 deg offset, but let's stick to base for now.
-            // If the ship points UP by default, we add Math.PI/2.
-            // Looking at the screenshot, the ship points RIGHT, so angle 0 is correct.
-            this.setRotation(angle);
+            // The ship asset is facing LEFT by default, so we add PI (180 deg) 
+            // to make it face RIGHT when the angle is 0.
+            this.setRotation(angle + Math.PI);
         }
     }
 }
