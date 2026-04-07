@@ -28,6 +28,32 @@ export class MainScene extends Phaser.Scene {
         const { width, height } = this.scale;
         const mapW = 4000, mapH = 4000, tileSize = 200;
 
+        // BUG FIX: Remove white background from ship texture
+        if (this.textures.exists('ship')) {
+            const shipTexture = this.textures.get('ship');
+            const source = shipTexture.getSourceImage() as HTMLImageElement;
+            const canvas = document.createElement('canvas');
+            canvas.width = source.width;
+            canvas.height = source.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(source, 0, 0);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const pixels = imgData.data;
+                // Use the color of the top-left pixel (0,0) as the background color to remove
+                const bgR = pixels[0], bgG = pixels[1], bgB = pixels[2];
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const dist = Math.abs(pixels[i] - bgR) + Math.abs(pixels[i+1] - bgG) + Math.abs(pixels[i+2] - bgB);
+                    if (dist < 40) { // Tolerance for minor color variations
+                        pixels[i+3] = 0;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+                this.textures.remove('ship');
+                this.textures.addCanvas('ship', canvas);
+            }
+        }
+
         this.cameras.main.setBounds(0, 0, mapW, mapH);
         this.physics.world.setBounds(0, 0, mapW, mapH);
         this.cameras.main.setBackgroundColor('#020617');
@@ -105,6 +131,34 @@ export class MainScene extends Phaser.Scene {
         // System HUD
         this.add.text(40, 40, 'SPACE_COMMAND.EXE v2.0', { fontSize: '15px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', letterSpacing: 4, fontStyle: 'bold' }).setScrollFactor(0);
 
+        // Mini-map Camera
+        const miniMapW = 200, miniMapH = 200, padding = 40;
+        const miniMap = this.cameras.add(width - miniMapW - padding, padding, miniMapW, miniMapH)
+            .setZoom(0.04) // Show most of the 4000x4000 map
+            .setName('mini')
+            .setBackgroundColor(0x000000)
+            .setBounds(0, 0, mapW, mapH)
+            .setAlpha(0.8)
+            .setRoundPixels(true);
+        
+        miniMap.scrollX = mapW / 2 - miniMapW;
+        miniMap.scrollY = mapH / 2 - miniMapH;
+        
+        // Add a border to the mini-map
+        const border = this.add.graphics().setScrollFactor(0);
+        border.lineStyle(2, 0x3b82f6, 1);
+        border.strokeRect(width - miniMapW - padding, padding, miniMapW, miniMapH);
+        border.setDepth(1000);
+
+        // Mini-map ignore logic: Ignore specific UI elements in the mini-map camera
+        miniMap.ignore([this.modalOverlay, this.modalContainer, border]);
+        
+        // Player Marker on Minimap
+        const marker = this.add.circle(0, 0, 80, 0xff0000, 1).setDepth(2000);
+        this.events.on('update', () => {
+            marker.setPosition(this.player.x, this.player.y);
+        });
+
         // Dynamic Resize Handler
         this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
             const { width: newW, height: newH } = gameSize;
@@ -131,6 +185,17 @@ export class MainScene extends Phaser.Scene {
             this.modalDetails.setWordWrapWidth(mWidth - 80);
             const closeBtn = this.modalContainer.getAt(4) as Phaser.GameObjects.Text;
             if (closeBtn) closeBtn.setY(mHeight/2 - 50);
+
+            // Re-position Mini-map
+            const mSize = 200, p = 40;
+            const mCam = this.cameras.getCamera('mini');
+            if (mCam) mCam.setPosition(newW - mSize - p, p);
+            const borderGraphics = this.children.list.find(c => c instanceof Phaser.GameObjects.Graphics && c.depth === 1000) as Phaser.GameObjects.Graphics;
+            if (borderGraphics) {
+                borderGraphics.clear();
+                borderGraphics.lineStyle(2, 0x3b82f6, 1);
+                borderGraphics.strokeRect(newW - mSize - p, p, mSize, mSize);
+            }
         });
     }
 

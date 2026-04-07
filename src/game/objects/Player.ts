@@ -53,11 +53,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (vx !== 0 && vy !== 0) { vx *= 0.707; vy *= 0.707; }
         this.setVelocity(vx, vy);
 
-        // Subtle procedural lean animation
-        if (vx !== 0) {
-            this.setAngle(vx * 0.04);
-        } else {
-            this.setAngle(0);
+        // Rotation logic: Point towards movement direction
+        if (vx !== 0 || vy !== 0) {
+            const angle = Math.atan2(vy, vx);
+            // Current ship assets usually point right (0 degrees) by default in Phaser
+            this.setRotation(angle);
         }
     }
 }
