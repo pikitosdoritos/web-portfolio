@@ -36,10 +36,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setDepth(10);
         
         this.cursors = scene.input.keyboard!.createCursorKeys();
-        this.wasd = scene.input.keyboard!.addKeys('W,A,S,D') as any;
+        this.wasd = scene.input.keyboard!.addKeys('W,A,S,D,SPACE') as any;
     }
 
-    update() {
+    private lastFired: number = 0;
+
+    update(time: number) {
         this.setVelocity(0);
         let vx = 0, vy = 0;
 
@@ -56,9 +58,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // Rotation logic: Point towards movement direction
         if (vx !== 0 || vy !== 0) {
             const angle = Math.atan2(vy, vx);
-            // The ship asset is facing LEFT by default, so we add PI (180 deg) 
-            // to make it face RIGHT when the angle is 0.
             this.setRotation(angle + Math.PI);
+        }
+
+        // Shooting logic
+        if (this.wasd.SPACE.isDown && time > this.lastFired + 200) {
+            this.lastFired = time;
+            this.emit('fire', this.x, this.y, this.rotation - Math.PI); // Fire in the bow direction
         }
     }
 }

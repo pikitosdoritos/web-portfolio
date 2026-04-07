@@ -16,6 +16,8 @@ export class MainScene extends Phaser.Scene {
     private isModalOpen: boolean = false;
     private lastInteractionTime: number = 0;
     private nebulas: Phaser.GameObjects.Image[] = [];
+    private asteroids!: Phaser.Physics.Arcade.Group;
+    private bullets!: Phaser.Physics.Arcade.Group;
 
     constructor() {
         super({ key: 'MainScene' });
@@ -53,6 +55,29 @@ export class MainScene extends Phaser.Scene {
                 this.textures.addCanvas('ship', canvas);
             }
         }
+
+        ['drone', 'structures'].forEach(key => {
+            if (this.textures.exists(key)) {
+                const tex = this.textures.get(key);
+                const source = tex.getSourceImage() as HTMLImageElement;
+                const canvas = document.createElement('canvas');
+                canvas.width = source.width; canvas.height = source.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(source, 0, 0);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const pix = imgData.data;
+                    const br = pix[0], bg = pix[1], bb = pix[2];
+                    for (let i = 0; i < pix.length; i += 4) {
+                        const dist = Math.abs(pix[i]-br) + Math.abs(pix[i+1]-bg) + Math.abs(pix[i+2]-bb);
+                        if (dist < 30) pix[i+3] = 0;
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    this.textures.remove(key);
+                    this.textures.addCanvas(key, canvas);
+                }
+            }
+        });
 
         this.cameras.main.setBounds(0, 0, mapW, mapH);
         this.physics.world.setBounds(0, 0, mapW, mapH);
@@ -94,8 +119,8 @@ export class MainScene extends Phaser.Scene {
 
         // SPAWN ROAMING DRONES
         const droneData = [
-            { x: hubX + 500, y: hubY - 500, data: { title: 'Drone_Alpha', description: 'System Diagnostics Log.', details: 'Status: All systems nominal. Latency: 14ms. Core Temperature: stable.' } },
-            { x: hubX - 800, y: hubY + 400, data: { title: 'Drone_Beta', description: 'Development Insight #42.', details: 'Did you know? This portfolio uses Phaser 3 for high-performance 2D rendering.' } }
+            { x: hubX + 1500, y: hubY - 800, data: { title: 'Probe_Gamma', description: 'Tech Stack Deep Dive.', details: 'Adept in building high-concurrency systems. Proficient with FastAPI, PostgreSQL, and Redis. Uses LangChain/LangGraph for complex agentic workflows.' } },
+            { x: hubX - 1800, y: hubY + 1200, data: { title: 'Probe_Delta', description: 'Open Source Highlights.', details: 'Continuously contributing to LLM infrastructure. Developed automated testing suites for AI agents. Active in the Next.js and Go ecosystems.' } }
         ];
 
         droneData.forEach(d => {
@@ -105,14 +130,77 @@ export class MainScene extends Phaser.Scene {
 
         const anomalyX = 2500, anomalyY = 1500;
         const anomaly = new InteractiveObject(this, anomalyX, anomalyY, {
-            title: 'Anomaly_0',
-            description: 'Unidentified Spatial Riff.',
-            details: 'WARNING: Gravitational fluctuations detected. Subtle pull forces active.'
-        });
-        this.tweens.add({ targets: anomaly, scale: 1.5, alpha: 0.5, duration: 2500, yoyo: true, repeat: -1 });
+            title: 'Chronos_Anomaly',
+            description: 'A rift in technical time.',
+            details: 'Gravitational anomaly detected. This represents the iterative nature of development—constantly pulling toward higher quality and more robust architectures.'
+        }, true);
+        
+        // Scale down and apply transparency trick to Anomaly icon
+        anomaly.setScale(0.4);
+        const anIcon = anomaly.list[0] as Phaser.GameObjects.Sprite;
+        if (anIcon && anIcon.texture) {
+            // Apply similar transparency logic if it has a dark bg
+            anIcon.setTint(0x93c5fd); // Cool blue tint
+        }
+        
+        this.tweens.add({ targets: anomaly, alpha: 0.7, scale: 0.45, duration: 4000, yoyo: true, repeat: -1 });
         this.interactiveObjects.push(anomaly);
 
         this.physics.add.collider(this.player, this.interactiveObjects);
+
+        // COMBAT SYSTEM: Bullets and Asteroids
+        this.bullets = this.physics.add.group({
+            defaultKey: 'bullet',
+            maxSize: 30
+        });
+
+        this.asteroids = this.physics.add.group();
+        for (let i = 0; i < 20; i++) {
+            const ax = Phaser.Math.Between(0, mapW), ay = Phaser.Math.Between(0, mapH);
+            // Don't spawn on top of hub
+            if (Phaser.Math.Distance.Between(ax, ay, hubX, hubY) < 400) continue;
+            
+            const asteroid = this.add.graphics({ x: ax, y: ay });
+            asteroid.fillStyle(0x4b5563, 1).lineStyle(2, 0x1f2937);
+            const points = [];
+            for (let j = 0; j < 8; j++) {
+                const angle = (j / 8) * Math.PI * 2;
+                const r = Phaser.Math.Between(15, 30);
+                points.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+            }
+            asteroid.fillPoints(points, true).strokePoints(points, true);
+            
+            this.physics.add.existing(asteroid);
+            const aBody = asteroid.body as Phaser.Physics.Arcade.Body;
+            aBody.setCircle(20).setBounce(1).setDrag(50).setVelocity(Phaser.Math.Between(-50, 50), Phaser.Math.Between(-50, 50));
+            this.asteroids.add(asteroid);
+        }
+
+        this.player.on('fire', (x: number, y: number, angle: number) => {
+            const bullet = this.add.rectangle(x, y, 4, 12, 0x3b82f6).setRotation(angle);
+            this.physics.add.existing(bullet);
+            const bBody = bullet.body as Phaser.Physics.Arcade.Body;
+            bBody.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
+            this.bullets.add(bullet);
+            // Auto destroy bullet
+            this.time.delayedCall(1200, () => bullet.destroy());
+        });
+
+        this.physics.add.collider(this.bullets, this.asteroids, (b, a) => {
+            b.destroy();
+            const ast = a as Phaser.GameObjects.Graphics;
+            this.cameras.main.shake(100, 0.005);
+            // Explosion effect
+            const particles = this.add.particles(ast.x, ast.y, 'space_assets', {
+                speed: { min: 20, max: 100 },
+                scale: { start: 0.1, end: 0 },
+                alpha: { start: 0.8, end: 0 },
+                lifespan: 500,
+                blendMode: 'ADD'
+            });
+            this.time.delayedCall(500, () => particles.destroy());
+            ast.destroy();
+        });
 
         // Modal System
         this.modalOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.75).setOrigin(0).setScrollFactor(0).setVisible(false).setDepth(100).setInteractive();
@@ -149,7 +237,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         this.cameras.main.ignore([marker, radarDecor, ...hubMarkers]);
-        miniMap.ignore([this.modalOverlay, this.modalContainer, radarDecor, ...this.nebulas, ...this.interactiveObjects]);
+        miniMap.ignore([this.modalOverlay, this.modalContainer, radarDecor, ...this.nebulas, ...this.interactiveObjects, this.bullets]);
 
         // Combined Resize Handler
         this.scale.on('resize', (gs: Phaser.Structs.Size) => {
@@ -186,7 +274,7 @@ export class MainScene extends Phaser.Scene {
 
     update(time: number) {
         if (this.isModalOpen) return;
-        this.player.update();
+        this.player.update(time);
 
         const anomalyPos = { x: 2500, y: 1500 };
         const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, anomalyPos.x, anomalyPos.y);
