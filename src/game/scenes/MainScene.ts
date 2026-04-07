@@ -182,6 +182,11 @@ export class MainScene extends Phaser.Scene {
             const bBody = bullet.body as Phaser.Physics.Arcade.Body;
             bBody.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
             this.bullets.add(bullet);
+            
+            // Hide bullets from mini-map
+            const miniMap = this.cameras.getCamera('mini');
+            if (miniMap) miniMap.ignore(bullet);
+
             // Auto destroy bullet
             this.time.delayedCall(1200, () => bullet.destroy());
         });
