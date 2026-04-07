@@ -28,6 +28,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.setDisplaySize(64, 64);
             body.setCircle(24, 8, 8); // Adjusted for 64x64
         } else {
+            this.setScale(0.4);
             body.setCircle(14, 2, 2);
         }
         
@@ -62,9 +63,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         }
 
         // Shooting logic
-        if (this.wasd.SPACE.isDown && time > this.lastFired + 200) {
+        if (Phaser.Input.Keyboard.JustDown(this.wasd.SPACE) && time > this.lastFired + 200) {
             this.lastFired = time;
-            this.emit('fire', this.x, this.y, this.rotation - Math.PI); // Fire in the bow direction
+            this.emit('fire', this.x, this.y, this.rotation - Math.PI);
         }
     }
 }

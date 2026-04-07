@@ -125,6 +125,7 @@ export class MainScene extends Phaser.Scene {
 
         droneData.forEach(d => {
             const drone = new Drone(this, d.x, d.y, d.data);
+            drone.setScale(0.4); // Making drones smaller as requested
             this.interactiveObjects.push(drone);
         });
 
@@ -135,15 +136,14 @@ export class MainScene extends Phaser.Scene {
             details: 'Gravitational anomaly detected. This represents the iterative nature of development—constantly pulling toward higher quality and more robust architectures.'
         }, true);
         
-        // Scale down and apply transparency trick to Anomaly icon
-        anomaly.setScale(0.4);
+        // Return anomaly scale to original imposing size
+        anomaly.setScale(1.1);
         const anIcon = anomaly.list[0] as Phaser.GameObjects.Sprite;
         if (anIcon && anIcon.texture) {
-            // Apply similar transparency logic if it has a dark bg
-            anIcon.setTint(0x93c5fd); // Cool blue tint
+            anIcon.setTint(0x93c5fd);
         }
         
-        this.tweens.add({ targets: anomaly, alpha: 0.7, scale: 0.45, duration: 4000, yoyo: true, repeat: -1 });
+        this.tweens.add({ targets: anomaly, alpha: 0.7, scale: 1.2, duration: 4000, yoyo: true, repeat: -1 });
         this.interactiveObjects.push(anomaly);
 
         this.physics.add.collider(this.player, this.interactiveObjects);
@@ -177,18 +177,20 @@ export class MainScene extends Phaser.Scene {
         }
 
         this.player.on('fire', (x: number, y: number, angle: number) => {
-            const bullet = this.add.rectangle(x, y, 4, 12, 0x3b82f6).setRotation(angle);
+            // Create a more visible glowing laser
+            const bullet = this.add.graphics({ x, y });
+            bullet.fillStyle(0x60a5fa, 1);
+            bullet.fillRoundedRect(-10, -2, 20, 4, 2);
+            bullet.setRotation(angle);
+            
             this.physics.add.existing(bullet);
             const bBody = bullet.body as Phaser.Physics.Arcade.Body;
-            bBody.setVelocity(Math.cos(angle) * 800, Math.sin(angle) * 800);
+            bBody.setVelocity(Math.cos(angle) * 1000, Math.sin(angle) * 1000);
             this.bullets.add(bullet);
             
-            // Hide bullets from mini-map
             const miniMap = this.cameras.getCamera('mini');
             if (miniMap) miniMap.ignore(bullet);
-
-            // Auto destroy bullet
-            this.time.delayedCall(1200, () => bullet.destroy());
+            this.time.delayedCall(1000, () => bullet.destroy());
         });
 
         this.physics.add.collider(this.bullets, this.asteroids, (b, a) => {
