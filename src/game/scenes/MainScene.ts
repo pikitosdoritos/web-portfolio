@@ -29,6 +29,9 @@ export class MainScene extends Phaser.Scene {
         this.load.image('drone', 'assets/drone.png');
         this.load.image('laser', 'assets/laser.png');
         this.load.image('asteroid', 'assets/asteroid.png');
+        this.load.audio('music', 'assets/music.mp3');
+        this.load.audio('laser_sfx', 'assets/laser_sfx.mp3');
+        this.load.audio('explosion_sfx', 'assets/explosion_sfx.mp3');
     }
 
     create() {
@@ -150,6 +153,9 @@ export class MainScene extends Phaser.Scene {
 
         this.physics.add.collider(this.player, this.interactiveObjects);
 
+        // MUSIC: Play deep space ambient loop
+        this.sound.play('music', { loop: true, volume: 0.4 });
+
         // COMBAT SYSTEM: Bullets and Asteroids
         this.bullets = this.physics.add.group({
             defaultKey: 'bullet',
@@ -157,13 +163,12 @@ export class MainScene extends Phaser.Scene {
         });
 
         this.asteroids = this.physics.add.group();
-        for (let i = 0; i < 25; i++) {
+        for (let i = 0; i < 30; i++) {
             const ax = Phaser.Math.Between(0, mapW), ay = Phaser.Math.Between(0, mapH);
             if (Phaser.Math.Distance.Between(ax, ay, hubX, hubY) < 600) continue;
             
-            const astType = Phaser.Math.Between(1, 3);
             const asteroid = this.add.sprite(ax, ay, 'asteroid');
-            asteroid.setScale(Phaser.Math.FloatBetween(0.5, 1.2));
+            asteroid.setScale(Phaser.Math.FloatBetween(0.3, 0.6)); // Smaller as requested
             asteroid.setAngle(Phaser.Math.Between(0, 360));
             
             this.physics.add.existing(asteroid);
@@ -175,13 +180,16 @@ export class MainScene extends Phaser.Scene {
 
         this.player.on('fire', (x: number, y: number, angle: number) => {
             const bullet = this.add.sprite(x, y, 'laser');
-            bullet.setRotation(angle + Math.PI/2); // Sprite points UP by default
-            bullet.setScale(0.8);
+            bullet.setRotation(angle + Math.PI/2); 
+            bullet.setScale(0.3); // Smaller projectile
             
             this.physics.add.existing(bullet);
             const bBody = bullet.body as Phaser.Physics.Arcade.Body;
             bBody.setVelocity(Math.cos(angle) * 1100, Math.sin(angle) * 1100);
             this.bullets.add(bullet);
+            
+            // SFX: Laser Shot
+            this.sound.play('laser_sfx', { volume: 0.25 });
             
             const miniMap = this.cameras.getCamera('mini');
             if (miniMap) miniMap.ignore(bullet);
@@ -192,6 +200,9 @@ export class MainScene extends Phaser.Scene {
             b.destroy();
             const ast = a as Phaser.GameObjects.Sprite;
             this.cameras.main.shake(150, 0.007);
+            
+            // SFX: Explosion
+            this.sound.play('explosion_sfx', { volume: 0.5 });
             
             // EXPLOSION: Fragment particles (rock)
             const rockParticles = this.add.particles(ast.x, ast.y, 'asteroid', {
@@ -250,7 +261,7 @@ export class MainScene extends Phaser.Scene {
         });
 
         this.cameras.main.ignore([marker, radarDecor, ...hubMarkers]);
-        miniMap.ignore([this.modalOverlay, this.modalContainer, radarDecor, ...this.nebulas, ...this.interactiveObjects, this.bullets]);
+        miniMap.ignore([this.modalOverlay, this.modalContainer, radarDecor, ...this.nebulas, ...this.interactiveObjects, ...this.bullets.getChildren()]);
 
         // Combined Resize Handler
         this.scale.on('resize', (gs: Phaser.Structs.Size) => {
