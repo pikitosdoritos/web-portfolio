@@ -19,6 +19,8 @@ export class MainScene extends Phaser.Scene {
         super({ key: 'MainScene' });
     }
 
+    preload() {}
+
     create() {
         const { width, height } = this.scale;
         const mapW = 4000, mapH = 4000, tileSize = 200;
@@ -28,7 +30,7 @@ export class MainScene extends Phaser.Scene {
         this.cameras.main.setBackgroundColor('#010409');
 
         const grid = this.add.graphics();
-        grid.lineStyle(1, 0x161b22, 1);
+        grid.lineStyle(1.5, 0x161b22, 1);
         for (let i = 0; i <= mapW / tileSize; i++) grid.lineBetween(i * tileSize, 0, i * tileSize, mapH);
         for (let j = 0; j <= mapH / tileSize; j++) grid.lineBetween(0, j * tileSize, mapW, j * tileSize);
 
@@ -37,19 +39,19 @@ export class MainScene extends Phaser.Scene {
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
         const items = [
-            { title: 'Log_01', x: 2000, y: 2300, data: { title: 'Personal Focus', description: 'AI-First Full-Stack Developer.', details: 'Building production-grade systems using LLMs as core architectural components. Expert in Python, FastAPI, and Next.js.' } },
-            { title: 'Log_02', x: 3000, y: 2000, data: { title: 'Project: Agentic CRM', description: 'Multi-agent orchestration.', details: 'Built using LangGraph and OpenAI. Handles automated lead scoring, email drafting, and calendar sync without human intervention.' } },
-            { title: 'Log_03', x: 1000, y: 2000, data: { title: 'Skills Matrix', description: 'Technical Proficiencies.', details: 'Python (FastAPI), React (Next.js), PostgreSQL, Redis, Kubernetes, LLM Fine-tuning, RAG Evaluation.' } },
-            { title: 'Log_04', x: 2000, y: 1000, data: { title: 'Experience', description: 'Startup Leadership.', details: 'Led engineering teams at 2 FinTech startups. Scaled APIs to 1M+ req/day. Optimized database performance by 40%.' } },
-            { title: 'Log_05', x: 2000, y: 3300, data: { title: 'Contact', description: 'Available for core collaboration.', details: 'GitHub: developer-archive\nLinkedIn: profile/main\nTelegram: @dev-link' } }
+            { title: 'Core_01', x: 2000, y: 2350, data: { title: 'Personal Focus', description: 'AI-First Full-Stack Developer.', details: 'Building production-grade systems using LLMs as core architectural components. Expert in Python, FastAPI, and Next.js.' } },
+            { title: 'Core_02', x: hubX + 1100, y: hubY, data: { title: 'Project Archive', description: 'Deployments and Open Source.', details: '• Agentic CRM: Using LangGraph for complex task routing.\n• Real-time Analytics: Dashboarding millions of metrics via FastAPI websockets.\n• LLM Tooling: Automation scripts and IDE extensions for dev flow.' } },
+            { title: 'Core_03', x: hubX - 1100, y: hubY, data: { title: 'Skills Matrix', description: 'Full-Stack Proficiency.', details: 'Frontend: React, Next.js, Framer Motion.\nBackend: FastAPI, Go, Postgres, Redis.\nAI: RAG architectures, local LLM serving, and evaluation pipelines.' } },
+            { title: 'Core_04', x: hubX, y: hubY - 1100, data: { title: 'Leadership Experience', description: 'Startup Growth Timeline.', details: 'Led engineering teams at 2 FinTech startups. Scaled APIs to 1M+ req/day. Optimized database performance by 40%. Focused on rapid iterations.' } },
+            { title: 'Core_05', x: hubX, y: hubY + 1400, data: { title: 'Connection Hub', description: 'Available for technical deep dives.', details: 'GitHub: developer-archive\nLinkedIn: profile/professional\nTelegram: @dev-link\nEmail: hello@example.com' } }
         ];
 
         items.forEach(item => {
             const obj = new InteractiveObject(this, item.x, item.y, item.data);
-            this.tweens.add({ targets: obj, alpha: 0.8, scale: 1.1, duration: 2000, yoyo: true, repeat: -1 });
+            this.tweens.add({ targets: obj, alpha: 0.85, scale: 1.05, duration: 1800, yoyo: true, repeat: -1 });
             this.interactiveObjects.push(obj);
             
-            // Mouse interaction for robustness
+            // Mouse/Touch fallback
             obj.on('pointerdown', () => {
                 if (obj.checkProximity(this.player.x, this.player.y)) {
                     this.showModal(obj.interactionData);
@@ -57,20 +59,39 @@ export class MainScene extends Phaser.Scene {
             });
         });
 
-        this.modalOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0).setScrollFactor(0).setVisible(false).setDepth(100).setInteractive();
+        // Add physical collisions between player and nodes
+        this.physics.add.collider(this.player, this.interactiveObjects);
+
+        // Responsive Modal Logic
+        this.modalOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.75).setOrigin(0).setScrollFactor(0).setVisible(false).setDepth(100).setInteractive();
+        
         this.modalContainer = this.add.container(width / 2, height / 2).setScrollFactor(0).setDepth(101).setVisible(false);
-        const bg = this.add.rectangle(0, 0, 600, 420, 0x0d1117, 0.95).setStrokeStyle(2, 0x3b82f6, 1);
-        this.modalTitle = this.add.text(0, -140, '', { fontSize: '32px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', fontWeight: '800', letterSpacing: 4 }).setOrigin(0.5);
-        this.modalDesc = this.add.text(0, -70, '', { fontSize: '20px', fontFamily: 'Inter, sans-serif', color: '#f0f6fc', wordWrap: { width: 500 } }).setOrigin(0.5);
-        this.modalDetails = this.add.text(0, 40, '', { fontSize: '15px', fontFamily: 'Inter, sans-serif', color: '#8b949e', wordWrap: { width: 500 }, lineSpacing: 10 }).setOrigin(0.5);
-        const close = this.add.text(0, 160, '[ ESC ] TO CLOSE', { fontSize: '12px', fontFamily: 'Inter, sans-serif', color: '#3b82f6', letterSpacing: 4 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        const modalW = Math.min(width * 0.9, 640);
+        const modalH = Math.min(height * 0.8, 480);
+        const bg = this.add.rectangle(0, 0, modalW, modalH, 0x0d1117, 0.98).setStrokeStyle(1.5, 0x3b82f6, 1);
+        
+        this.modalTitle = this.add.text(0, -modalH/2 + 60, '', { fontSize: '28px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', fontWeight: '800', letterSpacing: 3 }).setOrigin(0.5);
+        this.modalDesc = this.add.text(0, -modalH/2 + 120, '', { fontSize: '18px', fontFamily: 'Inter, sans-serif', color: '#f0f6fc', wordWrap: { width: modalW - 80 } }).setOrigin(0.5);
+        this.modalDetails = this.add.text(0, 30, '', { fontSize: '15px', fontFamily: 'Inter, sans-serif', color: '#94a3b8', wordWrap: { width: modalW - 80 }, lineSpacing: 10 }).setOrigin(0.5);
+        const close = this.add.text(0, modalH/2 - 50, '[ ESC ] TO CLOSE', { fontSize: '13px', fontFamily: 'Inter, sans-serif', color: '#3b82f6', letterSpacing: 3 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
         
         close.on('pointerdown', () => this.hideModal());
         this.modalContainer.add([bg, this.modalTitle, this.modalDesc, this.modalDetails, close]);
 
+        // Input setup
         this.interactKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.input.keyboard!.on('keydown-ESC', () => this.hideModal());
-        console.log('MainScene fully initialized');
+        
+        // System HUD
+        this.add.text(40, 40, 'SYSTEM_EXPLORER.EXE v1.3', { fontSize: '15px', fontFamily: 'Outfit, sans-serif', color: '#3b82f6', letterSpacing: 4, fontWeight: '800' }).setScrollFactor(0);
+
+        // Dynamic Resize Handler
+        this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
+            const { width: newW, height: newH } = gameSize;
+            this.modalOverlay.setSize(newW, newH);
+            this.modalContainer.setPosition(newW / 2, newH / 2);
+            // Re-center static background or other scene UI if needed
+        });
     }
 
     public showModal(data: InteractionData) {
@@ -82,13 +103,13 @@ export class MainScene extends Phaser.Scene {
         this.modalOverlay.setVisible(true);
         this.modalContainer.setVisible(true);
         this.modalContainer.setScale(0.9); this.modalContainer.alpha = 0;
-        this.tweens.add({ targets: this.modalContainer, scale: 1, alpha: 1, duration: 250, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: this.modalContainer, scale: 1, alpha: 1, duration: 240, ease: 'Back.easeOut' });
     }
 
     public hideModal() {
         if (!this.isModalOpen) return;
         this.isModalOpen = false;
-        this.tweens.add({ targets: this.modalContainer, scale: 0.9, alpha: 0, duration: 150, onComplete: () => { this.modalContainer.setVisible(false); this.modalOverlay.setVisible(false); } });
+        this.tweens.add({ targets: this.modalContainer, scale: 0.9, alpha: 0, duration: 160, onComplete: () => { this.modalContainer.setVisible(false); this.modalOverlay.setVisible(false); } });
     }
 
     update(time: number) {
