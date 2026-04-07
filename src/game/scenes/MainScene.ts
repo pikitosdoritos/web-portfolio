@@ -14,6 +14,7 @@ export class MainScene extends Phaser.Scene {
     private modalOverlay!: Phaser.GameObjects.Rectangle;
     private isModalOpen: boolean = false;
     private lastInteractionTime: number = 0;
+    private nebulas: Phaser.GameObjects.Image[] = [];
 
     constructor() {
         super({ key: 'MainScene' });
@@ -63,9 +64,12 @@ export class MainScene extends Phaser.Scene {
             const nx = Phaser.Math.Between(0, mapW);
             const ny = Phaser.Math.Between(0, mapH);
             const nebula = this.add.image(nx, ny, 'space_assets');
-            nebula.setAlpha(0.25).setDepth(0).setScrollFactor(0.8);
+            nebula.setAlpha(0.4).setDepth(0).setScrollFactor(0.8);
+            nebula.setBlendMode(Phaser.BlendModes.SCREEN); 
             nebula.setScale(Phaser.Math.FloatBetween(2, 4));
             nebula.setAngle(Phaser.Math.Between(0, 360));
+            // Add reference to list for mini-map ignore
+            this.nebulas.push(nebula);
         }
 
         // DESIGN: Star clusters (Small stars as decor)
@@ -151,7 +155,7 @@ export class MainScene extends Phaser.Scene {
         border.setDepth(1000);
 
         // Mini-map ignore logic: Ignore specific UI elements in the mini-map camera
-        miniMap.ignore([this.modalOverlay, this.modalContainer, border]);
+        miniMap.ignore([this.modalOverlay, this.modalContainer, border, ...this.nebulas]);
         
         // Player Marker on Minimap
         const marker = this.add.circle(0, 0, 80, 0xff0000, 1).setDepth(2000);
