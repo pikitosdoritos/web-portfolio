@@ -27,6 +27,8 @@ export class MainScene extends Phaser.Scene {
         this.load.image('ship', 'assets/ship.png');
         this.load.image('space_assets', 'assets/space_assets.png');
         this.load.image('drone', 'assets/drone.png');
+        this.load.image('laser', 'assets/laser.png');
+        this.load.image('asteroid', 'assets/asteroid.png');
     }
 
     create() {
@@ -56,7 +58,7 @@ export class MainScene extends Phaser.Scene {
             }
         }
 
-        ['drone', 'structures'].forEach(key => {
+        ['drone', 'structures', 'laser', 'asteroid'].forEach(key => {
             if (this.textures.exists(key)) {
                 const tex = this.textures.get(key);
                 const source = tex.getSourceImage() as HTMLImageElement;
@@ -70,7 +72,7 @@ export class MainScene extends Phaser.Scene {
                     const br = pix[0], bg = pix[1], bb = pix[2];
                     for (let i = 0; i < pix.length; i += 4) {
                         const dist = Math.abs(pix[i]-br) + Math.abs(pix[i+1]-bg) + Math.abs(pix[i+2]-bb);
-                        if (dist < 30) pix[i+3] = 0;
+                        if (dist < 35) pix[i+3] = 0;
                     }
                     ctx.putImageData(imgData, 0, 0);
                     this.textures.remove(key);
@@ -155,37 +157,30 @@ export class MainScene extends Phaser.Scene {
         });
 
         this.asteroids = this.physics.add.group();
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 25; i++) {
             const ax = Phaser.Math.Between(0, mapW), ay = Phaser.Math.Between(0, mapH);
-            // Don't spawn on top of hub
-            if (Phaser.Math.Distance.Between(ax, ay, hubX, hubY) < 400) continue;
+            if (Phaser.Math.Distance.Between(ax, ay, hubX, hubY) < 600) continue;
             
-            const asteroid = this.add.graphics({ x: ax, y: ay });
-            asteroid.fillStyle(0x4b5563, 1).lineStyle(2, 0x1f2937);
-            const points = [];
-            for (let j = 0; j < 8; j++) {
-                const angle = (j / 8) * Math.PI * 2;
-                const r = Phaser.Math.Between(15, 30);
-                points.push({ x: Math.cos(angle) * r, y: Math.sin(angle) * r });
-            }
-            asteroid.fillPoints(points, true).strokePoints(points, true);
+            const astType = Phaser.Math.Between(1, 3);
+            const asteroid = this.add.sprite(ax, ay, 'asteroid');
+            asteroid.setScale(Phaser.Math.FloatBetween(0.5, 1.2));
+            asteroid.setAngle(Phaser.Math.Between(0, 360));
             
             this.physics.add.existing(asteroid);
             const aBody = asteroid.body as Phaser.Physics.Arcade.Body;
-            aBody.setCircle(20).setBounce(1).setDrag(50).setVelocity(Phaser.Math.Between(-50, 50), Phaser.Math.Between(-50, 50));
+            aBody.setCircle(asteroid.displayWidth * 0.4);
+            aBody.setBounce(1).setDrag(20).setVelocity(Phaser.Math.Between(-40, 40), Phaser.Math.Between(-40, 40));
             this.asteroids.add(asteroid);
         }
 
         this.player.on('fire', (x: number, y: number, angle: number) => {
-            // Create a more visible glowing laser
-            const bullet = this.add.graphics({ x, y });
-            bullet.fillStyle(0x60a5fa, 1);
-            bullet.fillRoundedRect(-10, -2, 20, 4, 2);
-            bullet.setRotation(angle);
+            const bullet = this.add.sprite(x, y, 'laser');
+            bullet.setRotation(angle + Math.PI/2); // Sprite points UP by default
+            bullet.setScale(0.8);
             
             this.physics.add.existing(bullet);
             const bBody = bullet.body as Phaser.Physics.Arcade.Body;
-            bBody.setVelocity(Math.cos(angle) * 1000, Math.sin(angle) * 1000);
+            bBody.setVelocity(Math.cos(angle) * 1100, Math.sin(angle) * 1100);
             this.bullets.add(bullet);
             
             const miniMap = this.cameras.getCamera('mini');
@@ -195,17 +190,28 @@ export class MainScene extends Phaser.Scene {
 
         this.physics.add.collider(this.bullets, this.asteroids, (b, a) => {
             b.destroy();
-            const ast = a as Phaser.GameObjects.Graphics;
-            this.cameras.main.shake(100, 0.005);
-            // Explosion effect
-            const particles = this.add.particles(ast.x, ast.y, 'space_assets', {
-                speed: { min: 20, max: 100 },
+            const ast = a as Phaser.GameObjects.Sprite;
+            this.cameras.main.shake(150, 0.007);
+            
+            // EXPLOSION: Fragment particles (rock)
+            const rockParticles = this.add.particles(ast.x, ast.y, 'asteroid', {
+                speed: { min: 50, max: 200 },
                 scale: { start: 0.1, end: 0 },
-                alpha: { start: 0.8, end: 0 },
-                lifespan: 500,
+                lifespan: 600,
+                quantity: 15,
+                gravityY: 0
+            });
+            // FLASH: Glow particles (energy)
+            const flash = this.add.particles(ast.x, ast.y, 'laser', {
+                speed: 150,
+                scale: { start: 1, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: 300,
+                quantity: 5,
                 blendMode: 'ADD'
             });
-            this.time.delayedCall(500, () => particles.destroy());
+            
+            this.time.delayedCall(600, () => { rockParticles.destroy(); flash.destroy(); });
             ast.destroy();
         });
 

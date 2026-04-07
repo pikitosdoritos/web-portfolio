@@ -62,8 +62,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
             this.setRotation(angle + Math.PI);
         }
 
-        // Shooting logic
-        if (Phaser.Input.Keyboard.JustDown(this.wasd.SPACE) && time > this.lastFired + 200) {
+        // Shooting logic: Mouse Click OR Spacebar
+        const pointer = this.scene.input.activePointer;
+        if ((pointer.isDown || Phaser.Input.Keyboard.JustDown(this.wasd.SPACE)) && time > this.lastFired + 200) {
             this.lastFired = time;
             this.emit('fire', this.x, this.y, this.rotation - Math.PI);
         }
