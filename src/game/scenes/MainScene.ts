@@ -51,26 +51,73 @@ export class MainScene extends Phaser.Scene {
                     ctx.drawImage(source, 0, 0);
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const pix = imgData.data;
+                    const w = canvas.width, h = canvas.height;
+                    
                     const br = pix[0], bg = pix[1], bb = pix[2];
-                    for (let i = 0; i < pix.length; i += 4) {
-                        const dist = Math.abs(pix[i]-br) + Math.abs(pix[i+1]-bg) + Math.abs(pix[i+2]-bb);
-                        if (dist < 50) {
-                            if (key === 'asteroid') {
-                                pix[i] = 0; pix[i+1] = 0; pix[i+2] = 0; pix[i+3] = 255;
-                            } else {
-                                pix[i+3] = 0;
+                    const isBg = (idx: number) => {
+                        const d = Math.abs(pix[idx]-br) + Math.abs(pix[idx+1]-bg) + Math.abs(pix[idx+2]-bb);
+                        return d < 50;
+                    };
+
+                    if (key === 'asteroid') {
+                        const outside = new Uint8Array(w * h);
+                        const queue: number[] = [];
+                        for (let x = 0; x < w; x++) { queue.push(x, (h - 1) * w + x); }
+                        for (let y = 1; y < h - 1; y++) { queue.push(y * w, y * w + (w - 1)); }
+                        
+                        while (queue.length > 0) {
+                            const idx = queue.pop()!;
+                            if (!outside[idx] && isBg(idx * 4)) {
+                                outside[idx] = 1;
+                                const x = idx % w, y = Math.floor(idx / w);
+                                if (x > 0) queue.push(idx - 1);
+                                if (x < w - 1) queue.push(idx + 1);
+                                if (y > 0) queue.push(idx - w);
+                                if (y < h - 1) queue.push(idx + w);
+                            }
+                        }
+
+                        for (let i = 0; i < pix.length; i += 4) {
+                            if (outside[i/4]) pix[i+3] = 0;
+                            else if (isBg(i)) { pix[i]=0; pix[i+1]=0; pix[i+2]=0; pix[i+3]=255; }
+                        }
+                    } else {
+                        for (let i = 0; i < pix.length; i += 4) { if (isBg(i)) pix[i+3] = 0; }
+                    }
+
+                    // Automatic Cropping (Trim padding)
+                    let minX = w, maxX = 0, minY = h, maxY = 0, hasContent = false;
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            if (pix[(y * w + x) * 4 + 3] > 0) {
+                                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                                if (y < minY) minY = y; if (y > maxY) maxY = y;
+                                hasContent = true;
                             }
                         }
                     }
-                    ctx.putImageData(imgData, 0, 0);
-                    this.textures.remove(key);
-                    this.textures.addCanvas(key, canvas);
+
+                    if (hasContent) {
+                        const cropW = maxX - minX + 1, cropH = maxY - minY + 1;
+                        const croppedCanvas = document.createElement('canvas');
+                        croppedCanvas.width = cropW; croppedCanvas.height = cropH;
+                        const croppedCtx = croppedCanvas.getContext('2d')!;
+                        ctx.putImageData(imgData, 0, 0);
+                        croppedCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+                        this.textures.remove(key);
+                        this.textures.addCanvas(key, croppedCanvas);
+                    } else {
+                        ctx.putImageData(imgData, 0, 0);
+                        this.textures.remove(key);
+                        this.textures.addCanvas(key, canvas);
+                    }
                 }
             }
         });
 
         this.cameras.main.setBounds(0, 0, mapW, mapH).setBackgroundColor('#020617');
         this.physics.world.setBounds(0, 0, mapW, mapH);
+        this.physics.world.setFPS(120); // High-precision physics for fast bullets
 
         // Decor
         for (let i = 0; i < 6; i++) {
@@ -118,48 +165,48 @@ export class MainScene extends Phaser.Scene {
         this.bullets = this.physics.add.group();
         this.asteroids = this.physics.add.group();
         
-        for(let i=0; i<45; i++){
+        for(let i=0; i<60; i++){
             let ax: number = 0, ay: number = 0, overlapping: boolean = false;
             let attempts = 0;
+            const radius = 180; // Safety radius for spawning
             do {
                 ax = Phaser.Math.Between(100, mapW-100);
                 ay = Phaser.Math.Between(100, mapH-100);
                 overlapping = false;
                 
-                // Check distance to hubs
-                if(Phaser.Math.Distance.Between(ax,ay,hubX,hubY)<800) overlapping = true;
+                if(Phaser.Math.Distance.Between(ax,ay,hubX,hubY)<1000) overlapping = true;
                 
-                // Check distance to other asteroids
                 if (!overlapping) {
                     this.asteroids.getChildren().forEach((a: any) => {
-                        if (Phaser.Math.Distance.Between(ax, ay, a.x, a.y) < 200) overlapping = true;
+                        if (Phaser.Math.Distance.Between(ax, ay, a.x, a.y) < radius) overlapping = true;
                     });
                 }
                 
-                // Check distance to interactive objects
                 if (!overlapping) {
                     this.interactiveObjects.forEach(obj => {
-                        if (Phaser.Math.Distance.Between(ax, ay, obj.x, obj.y) < 300) overlapping = true;
+                        if (Phaser.Math.Distance.Between(ax, ay, obj.x, obj.y) < 400) overlapping = true;
                     });
                 }
                 attempts++;
-            } while (overlapping && attempts < 50);
+            } while (overlapping && attempts < 100);
 
             if (!overlapping) {
-                const ast = this.add.sprite(ax, ay, 'asteroid').setScale(Phaser.Math.FloatBetween(0.4, 0.8));
+                const ast = this.add.sprite(ax, ay, 'asteroid').setScale(Phaser.Math.FloatBetween(0.1, 0.25));
                 this.physics.add.existing(ast);
-                (ast.body as any).setCircle(ast.displayWidth*0.4).setBounce(1).setVelocity(Phaser.Math.Between(-40,40));
+                ast.setRotation(Phaser.Math.FloatBetween(0, Math.PI * 2));
+                (ast.body as any).setCircle(ast.displayWidth * 0.45).setBounce(1).setVelocity(Phaser.Math.Between(-30,30));
                 this.asteroids.add(ast);
             }
         }
 
         // Particle System: PRE-CREATED Emitters to avoid memory freeze
         const laserEmitter = this.add.particles(0, 0, 'laser', {
-            scale: { start: 0.1, end: 0 },
-            alpha: { start: 0.5, end: 0 },
-            lifespan: 300,
+            scale: { start: 0.15, end: 0 },
+            alpha: { start: 1, end: 0 },
+            lifespan: 600,
             blendMode: 'ADD',
-            emitting: false
+            emitting: false,
+            rotate: { min: 0, max: 360 }
         });
 
         const explosionEmitter = this.add.particles(0, 0, 'asteroid', {
@@ -171,27 +218,33 @@ export class MainScene extends Phaser.Scene {
 
         this.player.on('fire', (x: number, y: number, angle: number) => {
             const bx = x + Math.cos(angle)*40, by = y + Math.sin(angle)*40;
-            const bullet = this.add.sprite(bx, by, 'laser').setScale(0.2).setRotation(angle+Math.PI/2);
+            // Slightly larger scale for visibility, cropping keeps it clean
+            const bullet = this.add.sprite(bx, by, 'laser').setScale(0.25).setRotation(angle+Math.PI/2);
             this.physics.add.existing(bullet);
             const body = bullet.body as Phaser.Physics.Arcade.Body;
-            body.setCircle(10, 0, 0).setVelocity(Math.cos(angle)*1600, Math.sin(angle)*1600);
+            // Larger hitbox for better collision detection at high speeds
+            body.setCircle(20, -5, -5).setVelocity(Math.cos(angle)*1900, Math.sin(angle)*1900);
             body.setCollideWorldBounds(true);
             body.onWorldBounds = true;
             this.bullets.add(bullet);
             
-            // Trail
-            laserEmitter.startFollow(bullet);
-            laserEmitter.emitting = true;
-            
             // SFX
             this.sound.play('laser_sfx', { volume: 0.15 });
             
-            // Cleanup: Bullet travels much further now
-            this.time.delayedCall(3500, () => { 
-                if(bullet.active) {
-                    laserEmitter.emitting = false;
-                    bullet.destroy(); 
+            const trailTimer = this.time.addEvent({
+                delay: 12, // Faster trail for better continuity
+                loop: true,
+                callback: () => {
+                    if (bullet.active) {
+                        laserEmitter.emitParticleAt(bullet.x, bullet.y, 1);
+                    } else {
+                        trailTimer.remove();
+                    }
                 }
+            });
+            
+            this.time.delayedCall(5000, () => { 
+                if(bullet.active) bullet.destroy(); 
             });
         });
 
@@ -202,12 +255,11 @@ export class MainScene extends Phaser.Scene {
             }
         });
 
-        this.physics.add.collider(this.bullets, this.asteroids, (bullet, asteroid) => {
+        this.physics.add.overlap(this.bullets, this.asteroids, (bullet, asteroid) => {
             const ast = asteroid as Phaser.GameObjects.Sprite;
-            explosionEmitter.emitParticleAt(ast.x, ast.y, 10);
-            laserEmitter.emitting = false;
+            explosionEmitter.emitParticleAt(ast.x, ast.y, 15);
             this.sound.play('explosion_sfx', { volume: 0.3 });
-            this.cameras.main.shake(100, 0.005);
+            this.cameras.main.shake(150, 0.006);
             bullet.destroy();
             ast.destroy();
         });
