@@ -15,6 +15,7 @@ export class MainScene extends Phaser.Scene {
     private modalOverlay!: Phaser.GameObjects.Rectangle;
     private isModalOpen: boolean = false;
     private lastInteractionTime: number = 0;
+    private escKey!: Phaser.Input.Keyboard.Key;
     private nebulas: Phaser.GameObjects.Image[] = [];
     private asteroids!: Phaser.Physics.Arcade.Group;
     private bullets!: Phaser.Physics.Arcade.Group;
@@ -53,7 +54,13 @@ export class MainScene extends Phaser.Scene {
                     const br = pix[0], bg = pix[1], bb = pix[2];
                     for (let i = 0; i < pix.length; i += 4) {
                         const dist = Math.abs(pix[i]-br) + Math.abs(pix[i+1]-bg) + Math.abs(pix[i+2]-bb);
-                        if (dist < 50) pix[i+3] = 0;
+                        if (dist < 50) {
+                            if (key === 'asteroid') {
+                                pix[i] = 0; pix[i+1] = 0; pix[i+2] = 0; pix[i+3] = 255;
+                            } else {
+                                pix[i+3] = 0;
+                            }
+                        }
                     }
                     ctx.putImageData(imgData, 0, 0);
                     this.textures.remove(key);
@@ -87,6 +94,7 @@ export class MainScene extends Phaser.Scene {
         this.modalDetails = this.add.text(0,40,'',{color:'#94a3b8',wordWrap:{width:500}}).setOrigin(0.5);
         this.modalContainer.add([mBg, this.modalTitle, this.modalDesc, this.modalDetails]);
         this.interactKey = this.input.keyboard!.addKey('E');
+        this.escKey = this.input.keyboard!.addKey('ESC');
 
         // Hubs
         const hubsData = [
@@ -109,13 +117,40 @@ export class MainScene extends Phaser.Scene {
         // Combined Combat & Physics
         this.bullets = this.physics.add.group();
         this.asteroids = this.physics.add.group();
-        for(let i=0; i<35; i++){
-            const ax=Phaser.Math.Between(0,mapW), ay=Phaser.Math.Between(0,mapH);
-            if(Phaser.Math.Distance.Between(ax,ay,hubX,hubY)<600) continue;
-            const ast = this.add.sprite(ax,ay,'asteroid').setScale(Phaser.Math.FloatBetween(0.3, 0.6));
-            this.physics.add.existing(ast);
-            (ast.body as any).setCircle(ast.displayWidth*0.4).setBounce(1).setVelocity(Phaser.Math.Between(-40,40));
-            this.asteroids.add(ast);
+        
+        for(let i=0; i<45; i++){
+            let ax: number = 0, ay: number = 0, overlapping: boolean = false;
+            let attempts = 0;
+            do {
+                ax = Phaser.Math.Between(100, mapW-100);
+                ay = Phaser.Math.Between(100, mapH-100);
+                overlapping = false;
+                
+                // Check distance to hubs
+                if(Phaser.Math.Distance.Between(ax,ay,hubX,hubY)<800) overlapping = true;
+                
+                // Check distance to other asteroids
+                if (!overlapping) {
+                    this.asteroids.getChildren().forEach((a: any) => {
+                        if (Phaser.Math.Distance.Between(ax, ay, a.x, a.y) < 200) overlapping = true;
+                    });
+                }
+                
+                // Check distance to interactive objects
+                if (!overlapping) {
+                    this.interactiveObjects.forEach(obj => {
+                        if (Phaser.Math.Distance.Between(ax, ay, obj.x, obj.y) < 300) overlapping = true;
+                    });
+                }
+                attempts++;
+            } while (overlapping && attempts < 50);
+
+            if (!overlapping) {
+                const ast = this.add.sprite(ax, ay, 'asteroid').setScale(Phaser.Math.FloatBetween(0.4, 0.8));
+                this.physics.add.existing(ast);
+                (ast.body as any).setCircle(ast.displayWidth*0.4).setBounce(1).setVelocity(Phaser.Math.Between(-40,40));
+                this.asteroids.add(ast);
+            }
         }
 
         // Particle System: PRE-CREATED Emitters to avoid memory freeze
@@ -135,22 +170,42 @@ export class MainScene extends Phaser.Scene {
         });
 
         this.player.on('fire', (x: number, y: number, angle: number) => {
-            const bx = x + Math.cos(angle)*35, by = y + Math.sin(angle)*35;
-            const bullet = this.add.sprite(bx, by, 'laser').setScale(0.1).setRotation(angle+Math.PI/2);
+            const bx = x + Math.cos(angle)*40, by = y + Math.sin(angle)*40;
+            const bullet = this.add.sprite(bx, by, 'laser').setScale(0.2).setRotation(angle+Math.PI/2);
             this.physics.add.existing(bullet);
-            (bullet.body as any).setCircle(15, -10, -10).setVelocity(Math.cos(angle)*1400, Math.sin(angle)*1400);
+            const body = bullet.body as Phaser.Physics.Arcade.Body;
+            body.setCircle(10, 0, 0).setVelocity(Math.cos(angle)*1600, Math.sin(angle)*1600);
+            body.setCollideWorldBounds(true);
+            body.onWorldBounds = true;
             this.bullets.add(bullet);
             
-            // SFX
-            this.sound.play('laser_sfx', { volume: 0.2 });
+            // Trail
+            laserEmitter.startFollow(bullet);
+            laserEmitter.emitting = true;
             
-            // Cleanup
-            this.time.delayedCall(2000, () => { if(bullet.active) bullet.destroy(); });
+            // SFX
+            this.sound.play('laser_sfx', { volume: 0.15 });
+            
+            // Cleanup: Bullet travels much further now
+            this.time.delayedCall(3500, () => { 
+                if(bullet.active) {
+                    laserEmitter.emitting = false;
+                    bullet.destroy(); 
+                }
+            });
+        });
+
+        this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
+            if (body.gameObject && this.bullets.contains(body.gameObject)) {
+                laserEmitter.emitting = false;
+                body.gameObject.destroy();
+            }
         });
 
         this.physics.add.collider(this.bullets, this.asteroids, (bullet, asteroid) => {
             const ast = asteroid as Phaser.GameObjects.Sprite;
             explosionEmitter.emitParticleAt(ast.x, ast.y, 10);
+            laserEmitter.emitting = false;
             this.sound.play('explosion_sfx', { volume: 0.3 });
             this.cameras.main.shake(100, 0.005);
             bullet.destroy();
@@ -189,6 +244,9 @@ export class MainScene extends Phaser.Scene {
     }
 
     update(time: number) {
+        if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+            this.hideModal();
+        }
         if (this.isModalOpen) return;
         this.player.update(time);
         
